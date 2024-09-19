@@ -243,6 +243,8 @@ export default function RandomWheel() {
           <span className={styles.restaurantName}>{chosenRestaurant}</span>
           <br />
           <span className={styles.resultText}>tonight!</span>
+          <br />
+          <button>Close</button>
         </h1>
       </div>
     </div>
