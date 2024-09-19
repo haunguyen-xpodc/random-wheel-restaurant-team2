@@ -157,9 +157,25 @@ export default function RandomWheel() {
     >
       {restaurants.length > 0 && (
         <div className="bg-white">
-          <p className="text-lg font-semibold border-b border-[#ccc] p-4">
-            List restaurants
-          </p>
+          <div className="border-b border-[#ccc] p-4 flex justify-between items-center">
+            <p className="text-lg font-semibold">List restaurants</p>
+            <p
+              className="text-sm font-semibold cursor-pointer"
+              onClick={() => {
+                const tempRestaurants = [...restaurants];
+                for (let i = restaurants.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [tempRestaurants[i], tempRestaurants[j]] = [
+                    tempRestaurants[j],
+                    tempRestaurants[i],
+                  ];
+                }
+                setRestaurants(tempRestaurants);
+              }}
+            >
+              Shuffle
+            </p>
+          </div>
           <div className="grid max-h-[50vh] overflow-auto">
             {restaurants.map((name, index) => (
               <div
