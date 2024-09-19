@@ -4,11 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import styles from "./randomwheel.module.css";
 import axios from "axios";
 import HistoryDialog from "./components/HistoryDialog";
+import * as XLSX from 'xlsx';
 
 const initialRestaurants = [];
 
 export default function RandomWheel() {
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [restaurants, setRestaurants] = useState([]);
   const [chosenRestaurant, setChosenRestaurant] = useState("");
   const [isSpinning, setIsSpinning] = useState(false);
@@ -18,6 +20,7 @@ export default function RandomWheel() {
   const [keyword, setKeyword] = useState("");
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const debounce = (func, wait) => {
     let timeout;
@@ -77,6 +80,39 @@ export default function RandomWheel() {
     const updatedRestaurants = [...restaurants, value];
     setRestaurants(updatedRestaurants);
     localStorage.setItem("restaurants", JSON.stringify(updatedRestaurants));
+    setKeyword("");
+    setShowSuggestions(false);
+  };
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = e.target?.result;
+        console.log('data', data)
+        const workbook = XLSX.read(data, { type: 'binary' });
+
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const importData = sheetData.map(row => row.join(', '));
+        setRestaurants(prevRestaurants => {
+          const updatedRestaurants = [...prevRestaurants, ...importData];
+          localStorage.setItem("restaurants", JSON.stringify(updatedRestaurants));
+          return updatedRestaurants;
+        });
+      };
+
+      reader.readAsBinaryString(file);
+    }
+    event.target.value = ''
+  };
+
+  const handleClickOutside = (event) => {
+    if (event.target.closest('.form-add-restaurant')) return;
+    setShowSuggestions(false);
   };
 
   const deleteRestaurant = (index) => {
@@ -91,6 +127,7 @@ export default function RandomWheel() {
     );
     if (data.status === 200) {
       setListSuggestLocation(data.data.predictions);
+      setShowSuggestions(true);
     }
   };
 
@@ -114,6 +151,11 @@ export default function RandomWheel() {
       setRestaurants(initialRestaurants);
       localStorage.setItem("restaurants", JSON.stringify(initialRestaurants));
     }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -122,10 +164,6 @@ export default function RandomWheel() {
       setHistory(JSON.parse(historyRestaurants));
     }
   }, []);
-
-  // useEffect(() => {
-  //   localStorage.setItem("history", JSON.stringify(history));
-  // }, [history]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -185,13 +223,7 @@ export default function RandomWheel() {
 
   return (
     <div className={`${styles.body}`}>
-      <div className="relative flex items-center justify-center gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse">
-        <button
-          className="absolute top-0 px-4 py-2 bg-blue-200 border border-blue-400 rounded-md right-4 md:right-16 lg:right-24"
-          onClick={() => setShowHistory(true)}
-        >
-          View history
-        </button>
+      <div className="relative flex items-center justify-center gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse w-full">
         <HistoryDialog
           open={showHistory}
           setOpen={setShowHistory}
@@ -200,83 +232,18 @@ export default function RandomWheel() {
           removeAll={removeAllHistory}
         />
 
-        {restaurants.length > 0 && (
-          <div className="bg-white">
-            <div className="border-b border-[#ccc] p-4 flex justify-between items-center">
-              <p className="text-lg font-semibold">List restaurants</p>
-              <p
-                className="text-sm font-semibold cursor-pointer"
-                onClick={() => {
-                  const tempRestaurants = [...restaurants];
-                  for (let i = restaurants.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [tempRestaurants[i], tempRestaurants[j]] = [
-                      tempRestaurants[j],
-                      tempRestaurants[i],
-                    ];
-                  }
-                  setRestaurants(tempRestaurants);
-                }}
-              >
-                Shuffle
-              </p>
-            </div>
-            <div className="grid max-h-[50vh] overflow-auto">
-              {restaurants.map((name, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-6 p-4 border-b"
-                >
-                  <p className="text-sm text-gray-900">{name}</p>
-
-                  <button
-                    className="px-4 py-2 text-white bg-red-400 rounded-md"
-                    onClick={() => deleteRestaurant(index)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
+        <div className="flex gap-10 max-xl:flex-col">
+          <div className={`${styles.wheelContainer} shrink-0`}>
+            <div className={styles.selector}></div>
+            <canvas ref={canvasRef} className={styles.wheel}></canvas>
+            <button
+              className={styles.wheelCenter}
+              onClick={spinWheel}
+              aria-label="Spin the wheel"
+            >
+              SPIN
+            </button>
           </div>
-        )}
-
-        <div className={`${styles.wheelContainer} shrink-0`}>
-          <div className={styles.selector}></div>
-          <canvas ref={canvasRef} className={styles.wheel}></canvas>
-          <button
-            className={styles.wheelCenter}
-            onClick={spinWheel}
-            aria-label="Spin the wheel"
-          >
-            SPIN
-          </button>
-        </div>
-
-        <div className="form-add-restaurant">
-          <input
-            placeholder="Search restaurant..."
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              debounce(() => {
-                fetchSuggesstLocation(e.target.value);
-              }, 1000)();
-            }}
-          />
-          {listSuggestLocation?.length > 0 && keyword.length > 0 && (
-            <div className="list-locations">
-              {listSuggestLocation.map((item, idx) => (
-                <p
-                  key={idx}
-                  onClick={addRestaurant(
-                    item?.structured_formatting?.main_text
-                  )}
-                >
-                  {item.description}
-                </p>
-              ))}
-            </div>
-          )}
         </div>
 
         <div
@@ -310,6 +277,114 @@ export default function RandomWheel() {
           </div>
         </div>
       </div>
+      <div className="flex flex-col gap-4 fixed top-0 right-0 m-4">
+        {restaurants.length > 0 && (
+          <div className="bg-white rounded min-w-[200px]">
+            <div className="border-b border-[#ccc] p-4 flex justify-between items-center">
+              <p className="text-md font-semibold">List restaurants</p>
+              <p
+                className="text-md font-semibold cursor-pointer"
+                onClick={() => {
+                  const tempRestaurants = [...restaurants];
+                  for (let i = restaurants.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tempRestaurants[i], tempRestaurants[j]] = [
+                      tempRestaurants[j],
+                      tempRestaurants[i],
+                    ];
+                  }
+                  setRestaurants(tempRestaurants);
+                }}
+              >
+                Shuffle
+              </p>
+            </div>
+            <div className="grid max-h-[50vh] overflow-auto">
+              {restaurants.map((name, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between gap-6 p-4 border-b"
+                >
+                  <p className="text-sm text-gray-900">{name}</p>
+
+                  <button
+                    className="px-4 py-2 bg-red-500 text-white rounded"
+                    onClick={() => deleteRestaurant(index)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="form-add-restaurant relative">
+          <div className="relative">
+            <input
+              placeholder="Search restaurant..."
+              value={keyword}
+              onChange={(e) => {
+                setKeyword(e.target.value);
+                debounce(() => {
+                  fetchSuggesstLocation(e.target.value);
+                }, 1000)();
+              }}
+              className="w-full p-2 border rounded"
+            />
+            {keyword && (
+              <button
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
+                onClick={() => {
+                  setKeyword("");
+                  setShowSuggestions(false);
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {showSuggestions && listSuggestLocation?.length > 0 && (
+            <div className="list-locations absolute w-full bg-white border mt-1 rounded shadow-lg">
+              {listSuggestLocation.map((item, idx) => (
+                <p
+                  key={idx}
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={addRestaurant(item?.structured_formatting?.main_text)}
+                >
+                  {item.description}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={(e) => {
+              handleFileUpload(e)
+            }}
+            style={{ display: 'none' }}
+          />
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded w-full"
+            onClick={() => fileInputRef.current.click()}
+          >
+            Import CSV
+          </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded w-full md:right-16 lg:right-24"
+            onClick={() => setShowHistory(true)}
+          >
+            View history
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
+
+
+
