@@ -5,8 +5,14 @@ import styles from "./randomwheel.module.css";
 import axios from "axios";
 import HistoryDialog from "./components/HistoryDialog";
 import * as XLSX from 'xlsx';
+import Search from "./components/Search";
+import ListRestaurant from "./components/ListRestaurant";
+import ImportCSV from "./components/ImportCSV";
+import { Header } from "./components/SideBar";
 
 const initialRestaurants = [];
+
+const API_KEY = "xYMZRYtUiOGz90R5Lt3z7uAAJWaZb22L3hv4SKWs";
 
 export default function RandomWheel() {
   const canvasRef = useRef(null);
@@ -15,7 +21,6 @@ export default function RandomWheel() {
   const [chosenRestaurant, setChosenRestaurant] = useState("");
   const [isSpinning, setIsSpinning] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const API_KEY = "xYMZRYtUiOGz90R5Lt3z7uAAJWaZb22L3hv4SKWs";
   const [listSuggestLocation, setListSuggestLocation] = useState();
   const [keyword, setKeyword] = useState("");
   const [history, setHistory] = useState([]);
@@ -110,11 +115,6 @@ export default function RandomWheel() {
     event.target.value = ''
   };
 
-  const handleClickOutside = (event) => {
-    if (event.target.closest('.form-add-restaurant')) return;
-    setShowSuggestions(false);
-  };
-
   const deleteRestaurant = (index) => {
     const updatedRestaurants = restaurants.filter((_, i) => i !== index);
     setRestaurants(updatedRestaurants);
@@ -151,11 +151,6 @@ export default function RandomWheel() {
       setRestaurants(initialRestaurants);
       localStorage.setItem("restaurants", JSON.stringify(initialRestaurants));
     }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, []);
 
   useEffect(() => {
@@ -221,168 +216,104 @@ export default function RandomWheel() {
     }
   }, [restaurants]); // Add restaurants as a dependency
 
+  const handleChangeSearch = (e) => {
+    setKeyword(e.target.value);
+    debounce(() => {
+      fetchSuggesstLocation(e.target.value);
+    }, 1000)();
+  }
+
+  const handleClearSearch = () => {
+    setKeyword("");
+    setShowSuggestions(false);
+  }
+
+  const handleClickImportFile = () => {
+    fileInputRef.current.click()
+  }
+
   return (
-    <div className={`${styles.body}`}>
-      <div className="relative flex items-center justify-center gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse w-full">
-        <HistoryDialog
-          open={showHistory}
-          setOpen={setShowHistory}
-          history={history}
-          removeHistory={(idx) => removeHistory(idx)}
-          removeAll={removeAllHistory}
-        />
-
-        <div className="flex gap-10 max-xl:flex-col">
-          <div className={`${styles.wheelContainer} shrink-0`}>
-            <div className={styles.selector}></div>
-            <canvas ref={canvasRef} className={styles.wheel}></canvas>
-            <button
-              className={styles.wheelCenter}
-              onClick={spinWheel}
-              aria-label="Spin the wheel"
-            >
-              SPIN
-            </button>
-          </div>
-        </div>
-
-        <div
-          className={`${styles.resultMessage} ${showResult ? styles.show : ""}`}
-          role="alert"
-          aria-live="polite"
-        >
-          <h1>
-            <span className={styles.resultText}>Let's have</span>
-            <br />
-            <span className={styles.restaurantName}>{chosenRestaurant}</span>
-            <br />
-            <span className={styles.resultText}>tonight!</span>
-          </h1>
-          <div className="flex gap-4">
-            <button
-              className="px-4 py-2 text-white bg-red-400 rounded-md"
-              onClick={() => setShowResult(false)}
-            >
-              Got it!
-            </button>
-            <button
-              className="px-4 py-2 text-white bg-red-400 rounded-md"
-              onClick={() => {
-                deleteRestaurant(restaurants.indexOf(chosenRestaurant));
-                setShowHistory(false);
-              }}
-            >
-              Remove this restaurant
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-4 fixed top-0 right-0 m-4">
-        {restaurants.length > 0 && (
-          <div className="bg-white rounded min-w-[200px]">
-            <div className="border-b border-[#ccc] p-4 flex justify-between items-center">
-              <p className="text-md font-semibold">List restaurants</p>
-              <p
-                className="text-md font-semibold cursor-pointer"
-                onClick={() => {
-                  const tempRestaurants = [...restaurants];
-                  for (let i = restaurants.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [tempRestaurants[i], tempRestaurants[j]] = [
-                      tempRestaurants[j],
-                      tempRestaurants[i],
-                    ];
-                  }
-                  setRestaurants(tempRestaurants);
-                }}
-              >
-                Shuffle
-              </p>
-            </div>
-            <div className="grid max-h-[50vh] overflow-auto">
-              {restaurants.map((name, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-6 p-4 border-b"
-                >
-                  <p className="text-sm text-gray-900">{name}</p>
-
-                  <button
-                    className="px-4 py-2 bg-red-500 text-white rounded"
-                    onClick={() => deleteRestaurant(index)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <div className="form-add-restaurant relative">
-          <div className="relative">
-            <input
-              placeholder="Search restaurant..."
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                debounce(() => {
-                  fetchSuggesstLocation(e.target.value);
-                }, 1000)();
-              }}
-              className="w-full p-2 border rounded"
-            />
-            {keyword && (
-              <button
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
-                onClick={() => {
-                  setKeyword("");
-                  setShowSuggestions(false);
-                }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          {showSuggestions && listSuggestLocation?.length > 0 && (
-            <div className="list-locations absolute w-full bg-white border mt-1 rounded shadow-lg">
-              {listSuggestLocation.map((item, idx) => (
-                <p
-                  key={idx}
-                  className="p-2 hover:bg-gray-100 cursor-pointer"
-                  onClick={addRestaurant(item?.structured_formatting?.main_text)}
-                >
-                  {item.description}
-                </p>
-              ))}
-            </div>
+    <>
+      <Header>
+        <div className="flex flex-col md:flex-row items-center gap-2">
+          <Search handleChangeSearch={handleChangeSearch} handleClearSearch={handleClearSearch} keyword={keyword} showSuggestions={showSuggestions} listSuggestLocation={listSuggestLocation} addRestaurant={addRestaurant} />
+          {restaurants.length > 0 && (
+            <ListRestaurant restaurants={restaurants} deleteRestaurant={deleteRestaurant} setRestaurants={setRestaurants} />
           )}
         </div>
-
-        <div className="flex gap-2">
-          <input
-            type="file"
-            accept=".csv"
-            ref={fileInputRef}
-            onChange={(e) => {
-              handleFileUpload(e)
-            }}
-            style={{ display: 'none' }}
-          />
+        <div className="flex gap-4 justify-center">
+          <ImportCSV fileInputRef={fileInputRef} handleFileUpload={handleFileUpload} handleClickImportFile={handleClickImportFile} />
           <button
-            className="px-4 py-2 bg-blue-500 text-white rounded w-full"
-            onClick={() => fileInputRef.current.click()}
-          >
-            Import CSV
-          </button>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded w-full md:right-16 lg:right-24"
+            className="px-2 py-2 bg-gray-500 text-white rounded w-full md:right-16 lg:right-24"
             onClick={() => setShowHistory(true)}
           >
             View history
           </button>
         </div>
+      </Header>
+      <div className={`${styles.body}`}>
+
+        <div className="flex justify-center items-center flex-col">
+          <h1 className="text-transparent bg-clip-text bg-gradient-to-r to-emerald-600 from-sky-400 mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-4xl lg:text-5xl dark:text-white">Restaurants Random Wheel</h1>
+          <div className="font-extrabold text-gray-500 dark:text-gray-400 text-xl">Please choose your restaurant and I will give you a decision!</div>
+        </div>
+        <div className="relative flex items-center justify-center gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse w-full">
+          <HistoryDialog
+            open={showHistory}
+            setOpen={setShowHistory}
+            history={history}
+            removeHistory={(idx) => removeHistory(idx)}
+            removeAll={removeAllHistory}
+          />
+
+          <div className="gap-10 max-xl:flex-col">
+            <div className={`${styles.wheelContainer}`}>
+              <div className={styles.selector}></div>
+              <canvas ref={canvasRef} className={styles.wheel}></canvas>
+              <button
+                className={styles.wheelCenter}
+                onClick={spinWheel}
+                aria-label="Spin the wheel"
+              >
+                SPIN
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={`${styles.resultMessage} ${showResult ? styles.show : ""}`}
+            role="alert"
+            aria-live="polite"
+          >
+            <h1>
+              <span className={styles.resultText}>Let's have</span>
+              <br />
+              <span className={styles.restaurantName}>{chosenRestaurant}</span>
+              <br />
+              <span className={styles.resultText}>tonight!</span>
+            </h1>
+            <div className="flex gap-4">
+              <button
+                className="px-4 py-2 text-white bg-red-400 rounded-md"
+                onClick={() => setShowResult(false)}
+              >
+                Got it!
+              </button>
+              <button
+                className="px-4 py-2 text-white bg-red-400 rounded-md"
+                onClick={() => {
+                  deleteRestaurant(restaurants.indexOf(chosenRestaurant));
+                  setShowHistory(false);
+                  setShowResult(false)
+                }}
+              >
+                Remove this restaurant
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
