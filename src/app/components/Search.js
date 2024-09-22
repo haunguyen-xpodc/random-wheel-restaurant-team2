@@ -20,7 +20,7 @@ function Search({ handleChangeSearch, handleClearSearch, keyword, showSuggestion
                 )}
             </div>
             {showSuggestions && listSuggestLocation?.length > 0 && (
-                <div className="list-locations absolute w-full bg-white border mt-1 rounded shadow-lg">
+                <div className="list-locations absolute bg-white border mt-1 z-10 rounded shadow-lg">
                     {listSuggestLocation.map((item, idx) => (
                         <p
                             key={idx}

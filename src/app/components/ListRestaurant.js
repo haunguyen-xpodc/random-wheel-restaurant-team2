@@ -16,7 +16,7 @@ function ListRestaurant({ restaurants, deleteRestaurant, setRestaurants }) {
                 </svg>
             </div>
             {isOpen && (
-                <div className="absolute z-10 w-full bg-white border border-t-0 border-[#ccc] max-h-[50vh] overflow-auto">
+                <div className="absolute z-4 w-full bg-white border border-t-0 border-[#ccc] max-h-[50vh] overflow-auto">
                     <div className="p-2 border-b border-gray-100 flex justify-end">
                         <button
                             className="text-sm text-blue-500 hover:text-blue-700"
