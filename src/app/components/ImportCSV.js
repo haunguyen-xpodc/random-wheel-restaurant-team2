@@ -13,7 +13,7 @@ function ImportCSV({ fileInputRef, handleFileUpload, handleClickImportFile }) {
                 style={{ display: 'none' }}
             />
             <button
-                className="px-4 py-1 bg-gray-500 text-white rounded "
+                className="px-2 py-2 bg-gray-500 text-white rounded "
                 onClick={handleClickImportFile}
             >
                 Import
