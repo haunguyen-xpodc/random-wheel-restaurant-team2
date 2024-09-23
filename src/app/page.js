@@ -4,11 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import styles from "./randomwheel.module.css";
 import axios from "axios";
 import HistoryDialog from "./components/HistoryDialog";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 import Search from "./components/Search";
 import ListRestaurant from "./components/ListRestaurant";
 import ImportCSV from "./components/ImportCSV";
 import { Header } from "./components/SideBar";
+import { debounce } from "./utils/functions";
+import { randomHexColor } from "./utils/helper";
 
 const initialRestaurants = [];
 
@@ -26,24 +28,6 @@ export default function RandomWheel() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-
-  const debounce = (func, wait) => {
-    let timeout;
-
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func(...args), wait);
-    };
-  };
-
-  function randomHexColor() {
-    return (
-      "#" +
-      Math.floor(Math.random() * 16777215)
-        .toString(16)
-        .padStart(6, "0")
-    );
-  }
 
   const spinWheel = () => {
     if (!restaurants?.length || restaurants?.length < 2) {
@@ -95,24 +79,27 @@ export default function RandomWheel() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const data = e.target?.result;
-        console.log('data', data)
-        const workbook = XLSX.read(data, { type: 'binary' });
+
+        const workbook = XLSX.read(data, { type: "binary" });
 
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
         const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        const importData = sheetData.map(row => row.join(', '));
-        setRestaurants(prevRestaurants => {
+        const importData = sheetData.map((row) => row.join(", "));
+        setRestaurants((prevRestaurants) => {
           const updatedRestaurants = [...prevRestaurants, ...importData];
-          localStorage.setItem("restaurants", JSON.stringify(updatedRestaurants));
+          localStorage.setItem(
+            "restaurants",
+            JSON.stringify(updatedRestaurants)
+          );
           return updatedRestaurants;
         });
       };
 
       reader.readAsBinaryString(file);
     }
-    event.target.value = ''
+    event.target.value = "";
   };
 
   const deleteRestaurant = (index) => {
@@ -221,30 +208,45 @@ export default function RandomWheel() {
     debounce(() => {
       fetchSuggesstLocation(e.target.value);
     }, 1000)();
-  }
+  };
 
   const handleClearSearch = () => {
     setKeyword("");
     setShowSuggestions(false);
-  }
+  };
 
   const handleClickImportFile = () => {
-    fileInputRef.current.click()
-  }
+    fileInputRef.current.click();
+  };
 
   return (
     <>
       <Header>
-        <div className="flex flex-col md:flex-row md:w-full items-center gap-2 mb-2">
-          <Search handleChangeSearch={handleChangeSearch} handleClearSearch={handleClearSearch} keyword={keyword} showSuggestions={showSuggestions} listSuggestLocation={listSuggestLocation} addRestaurant={addRestaurant} />
+        <div className="flex flex-col items-center gap-2 mb-2 md:flex-row md:w-full">
+          <Search
+            handleChangeSearch={handleChangeSearch}
+            handleClearSearch={handleClearSearch}
+            keyword={keyword}
+            showSuggestions={showSuggestions}
+            listSuggestLocation={listSuggestLocation}
+            addRestaurant={addRestaurant}
+          />
           {restaurants.length > 0 && (
-            <ListRestaurant restaurants={restaurants} deleteRestaurant={deleteRestaurant} setRestaurants={setRestaurants} />
+            <ListRestaurant
+              restaurants={restaurants}
+              deleteRestaurant={deleteRestaurant}
+              setRestaurants={setRestaurants}
+            />
           )}
         </div>
-        <div className="flex flex-col gap-4 justify-center md:flex-row">
-          <ImportCSV fileInputRef={fileInputRef} handleFileUpload={handleFileUpload} handleClickImportFile={handleClickImportFile} />
+        <div className="flex justify-center gap-4">
+          <ImportCSV
+            fileInputRef={fileInputRef}
+            handleFileUpload={handleFileUpload}
+            handleClickImportFile={handleClickImportFile}
+          />
           <button
-            className="w-max px-2 py-2 bg-gray-500 text-white rounded md:right-16 lg:right-24"
+            className="px-2 py-2 text-white bg-gray-500 rounded w-max md:right-16 lg:right-24"
             onClick={() => setShowHistory(true)}
           >
             View history
@@ -252,12 +254,15 @@ export default function RandomWheel() {
         </div>
       </Header>
       <div className={`${styles.body}`}>
-
-        <div className="flex justify-center items-center flex-col">
-          <h1 className="text-transparent bg-clip-text bg-gradient-to-r to-emerald-600 from-sky-400 mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-4xl lg:text-5xl dark:text-white">Restaurants Random Wheel</h1>
-          <div className="font-extrabold text-gray-500 dark:text-gray-400 text-xl">Please choose your restaurant and I will give you a decision!</div>
+        <div className="flex flex-col items-center justify-center px-4">
+          <h1 className="mb-4 text-4xl font-extrabold leading-none tracking-tight text-center text-transparent bg-clip-text bg-gradient-to-r to-emerald-600 from-sky-400 md:text-4xl lg:text-5xl dark:text-white">
+            Restaurants Random Wheel
+          </h1>
+          <div className="text-xl font-extrabold text-center text-gray-500 dark:text-gray-400">
+            Please choose your restaurant and I will give you a decision!
+          </div>
         </div>
-        <div className="relative flex items-center justify-center gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse w-full">
+        <div className="relative flex items-center justify-center w-full gap-10 px-4 md:px-16 lg:px-24 max-xl:flex-col-reverse">
           <HistoryDialog
             open={showHistory}
             setOpen={setShowHistory}
@@ -281,7 +286,9 @@ export default function RandomWheel() {
           </div>
 
           <div
-            className={`${styles.resultMessage} ${showResult ? styles.show : ""}`}
+            className={`${styles.resultMessage} ${
+              showResult ? styles.show : ""
+            }`}
             role="alert"
             aria-live="polite"
           >
@@ -304,7 +311,7 @@ export default function RandomWheel() {
                 onClick={() => {
                   deleteRestaurant(restaurants.indexOf(chosenRestaurant));
                   setShowHistory(false);
-                  setShowResult(false)
+                  setShowResult(false);
                 }}
               >
                 Remove this restaurant
@@ -316,6 +323,3 @@ export default function RandomWheel() {
     </>
   );
 }
-
-
-
