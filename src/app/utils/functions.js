@@ -1,4 +1,4 @@
-const debounce = (func, wait) => {
+export const debounce = (func, wait) => {
   let timeout;
 
   return (...args) => {

@@ -201,7 +201,7 @@ export default function RandomWheel() {
         ctx.restore();
       }
     }
-  }, [restaurants]); // Add restaurants as a dependency
+  }, [restaurants]);
 
   const handleChangeSearch = (e) => {
     setKeyword(e.target.value);
